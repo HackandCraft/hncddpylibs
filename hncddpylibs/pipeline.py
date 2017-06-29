@@ -16,6 +16,13 @@ def get_pipeline_service(serviceName, job_config):
                  if p['Name'] == serviceName), None)
 
 
+def get_current_service(job_config, default=None):
+    pipeline = job_config['Pipeline']
+    service = next((p for p in pipeline
+                 if p['Status'] == 'pending'), None)
+    return service['Name'] if service else default
+
+
 def process_completor(guid,
                       config,
                       job_config,

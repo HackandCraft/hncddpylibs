@@ -1,4 +1,7 @@
 import json
+import re
+
+uuid4hex = re.compile('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', re.I)
 
 from botocore.config import Config
 from io import BytesIO
@@ -6,7 +9,9 @@ from io import BytesIO
 import os
 import boto3
 import logging
+
 log = logging.getLogger(__file__)
+
 
 def config_file_name(guid):
     return '{0}/{0}-job-config.json'.format(guid)
@@ -75,7 +80,26 @@ def get_all_accounts(guid, bucketName):
 def get_s3_json(bucket, filename):
     s3 = boto3.resource('s3', config=Config(signature_version='s3v4'))
     with BytesIO() as confile:
-        s3.Bucket(bucket).download_fileobj(filename, confile)
-        confile.seek(0)
-        conftext = confile.read().decode('utf-8')
-        return json.loads(conftext, encoding='utf-8')
+        try:
+            s3.Bucket(bucket).download_fileobj(filename, confile)
+            confile.seek(0)
+            conftext = confile.read().decode('utf-8')
+            return json.loads(conftext, encoding='utf-8')
+        except Exception as e:
+            log.error('ERROR DOWENLOADING JSON:%s: %s', filename, e)
+            return None
+
+
+def list_prefixes(bucket):
+    client = boto3.client('s3')
+    paginator = client.get_paginator('list_objects')
+    result = paginator.paginate(Bucket=bucket, Delimiter='/')
+    prefixes = (prefix.get('Prefix').strip('/') for prefix in result.search('CommonPrefixes'))
+    return filter(uuid4hex.match, prefixes)
+
+
+def get_all_job_configs(bucket):
+    s3 = boto3.client('s3', config=Config(signature_version='s3v4'))
+    guids = list_prefixes(bucket)
+    return ((guid, get_s3_json(bucket, config_file_name(guid)))
+            for guid in guids)

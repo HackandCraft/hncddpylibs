@@ -55,6 +55,8 @@ def tweet_formatter(tweet):
 
 
 def get_fresh_token(creds):
+    if 'token' in creds:
+        return creds['token']
     keys = ('%s:%s' % (creds['Key'], creds['Secret'])).encode('utf-8')
     key = base64.b64encode(keys)
     auth_string = 'Basic {}'.format(key.decode('utf-8'))

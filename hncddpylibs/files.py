@@ -1,4 +1,5 @@
 import json
+
 import re
 
 uuid4hex = re.compile('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', re.I)
@@ -15,6 +16,10 @@ log = logging.getLogger(__file__)
 
 def config_file_name(guid):
     return '{0}/{0}-job-config.json'.format(guid)
+
+
+def evaluations_file_name(guid):
+    return '{0}/{0}-evaluations.json'.format(guid)
 
 
 def accounts_file_name(guid, pattern=None):
@@ -91,7 +96,7 @@ def get_s3_json(bucket, filename):
 
 
 def list_prefixes(bucket):
-    client = boto3.client('s3')
+    client = boto3.client('s3', config=Config(signature_version='s3v4'))
     paginator = client.get_paginator('list_objects')
     result = paginator.paginate(Bucket=bucket, Delimiter='/')
     prefixes = (prefix.get('Prefix').strip('/') for prefix in result.search('CommonPrefixes'))
@@ -99,7 +104,6 @@ def list_prefixes(bucket):
 
 
 def get_all_job_configs(bucket):
-    s3 = boto3.client('s3', config=Config(signature_version='s3v4'))
     guids = list_prefixes(bucket)
     return ((guid, get_s3_json(bucket, config_file_name(guid)))
             for guid in guids)

@@ -5,7 +5,7 @@ import requests
 
 import boto3
 from botocore.config import Config
-from hncddpylibs.files import config_file_name
+from .files import config_file_name
 
 log = logging.getLogger(__file__)
 

@@ -75,8 +75,9 @@ def get_all_accounts(guid, bucketName):
                     cache.write(obj.get()['Body'].read())
             if os.path.exists(cache_path):
                 try:
-                    yield json.load(open(cache_path), encoding='utf-8')
+                    yield json.load(open(cache_path, encoding='utf-8'), encoding='utf-8')
                 except (json.decoder.JSONDecodeError, UnicodeDecodeError) as e:
+                    log.error('%s: %s',obj.key, e)
                     continue
             else:
                 continue

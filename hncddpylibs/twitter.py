@@ -1,6 +1,12 @@
 import logging
 
+import time
+
 import base64
+from urllib3.exceptions import NewConnectionError, MaxRetryError
+
+TIMEOUT = 300
+MAX_RETRY = 10
 
 log = logging.getLogger(__file__)
 
@@ -8,6 +14,10 @@ import requests
 
 
 class TwitterException(Exception):
+    pass
+
+
+class BlockedException(TwitterException):
     pass
 
 
@@ -28,19 +38,23 @@ def get_tweets_page(screen_name, token, from_id=None):
     if from_id:
         params['max_id'] = from_id - 1
 
-    resp = requests.get(twitter_api_url('/1.1/statuses/user_timeline.json'),
-                        params=params,
-                        headers={'Authorization': 'Bearer {}'.format(token)})
-    if resp.status_code == [420, 429]:
-        log.warning('TWITTER_NETWORK_THROTTLED: %s, %s, %s', screen_name, resp.status_code, resp.content)
-        raise RateLimitException('TWITTER LIMIT')
-    elif resp.status_code == [401, 410]:
-        log.warning('TWITTER_ACCOUNT_ERROR: %s, %s, %s', screen_name, resp.status_code, resp.content)
-        raise AccountSuspendedException('TWITTER LIMIT')
-    elif resp.status_code != 200:
-        log.error('TWITTER_NETWORK_ERROR: %s, %s, %s', screen_name, resp.status_code, resp.content)
-        raise TwitterException(resp.content)
-    return resp.json()
+    try:
+        resp = requests.get(twitter_api_url('/1.1/statuses/user_timeline.json'),
+                            params=params,
+                            headers={'Authorization': 'Bearer {}'.format(token)})
+    except (NewConnectionError, MaxRetryError, ConnectionError) as e:
+        pass
+    else:
+        if resp.status_code == [420, 429]:
+            log.warning('TWITTER_NETWORK_THROTTLED: %s, %s, %s', screen_name, resp.status_code, resp.content)
+            raise RateLimitException('TWITTER LIMIT')
+        elif resp.status_code == [401, 410]:
+            log.warning('TWITTER_ACCOUNT_ERROR: %s, %s, %s', screen_name, resp.status_code, resp.content)
+            raise AccountSuspendedException('TWITTER LIMIT')
+        elif resp.status_code != 200:
+            log.error('TWITTER_NETWORK_ERROR: %s, %s, %s', screen_name, resp.status_code, resp.content)
+            raise TwitterException(resp.content)
+        return resp.json()
 
 
 def tweet_formatter(tweet):
@@ -74,10 +88,19 @@ def get_all_tweets(creds, screen_name, limit, transform=tweet_formatter):
     tweets = []
     from_id = None
     while True:
-        try:
-            page = get_tweets_page(screen_name, token, from_id)
-        except TwitterException:
-            return []
+        retry_count = 0
+        page = []
+        while retry_count < MAX_RETRY:
+            try:
+                page = get_tweets_page(screen_name, token, from_id)
+                break
+            except BlockedException as e:
+                log.warning('BLOCKED_BY_TWITTER(%s) waiting: %s secs, reason< %s', screen_name, TIMEOUT, e)
+                retry_count += 1
+                time.sleep(300)
+            except TwitterException:
+                return []
+
         if len(page) == 0:
             break
         tweets.extend([transform(tweet) for tweet in page])

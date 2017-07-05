@@ -63,21 +63,21 @@ def get_tmp_path(guid=None):
     return p
 
 
-def get_all_accounts(guid, bucketName):
+def get_all_accounts(guid, bucket_name, use_cache=True):
     s3 = boto3.resource('s3', config=Config(signature_version='s3v4'))
-    bucket = s3.Bucket(bucketName)
+    bucket = s3.Bucket(bucket_name)
     fullPrefix = '{}/twitteraccounts/'.format(guid)
     for i, obj in enumerate(bucket.objects.filter(Prefix='{}/'.format(guid))):
         if obj.key.startswith(fullPrefix) and obj.key.endswith('json'):
             cache_path = account_tmp_file(guid, obj.key)
-            if not os.path.exists(cache_path):
+            if not os.path.exists(cache_path) or use_cache == False:
                 with open(cache_path, 'wb') as cache:
                     cache.write(obj.get()['Body'].read())
             if os.path.exists(cache_path):
                 try:
                     yield json.load(open(cache_path, encoding='utf-8'), encoding='utf-8')
                 except (json.decoder.JSONDecodeError, UnicodeDecodeError) as e:
-                    log.error('%s: %s',obj.key, e)
+                    log.error('%s: %s', obj.key, e)
                     continue
             else:
                 continue

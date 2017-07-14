@@ -1,13 +1,9 @@
+import logging
 from multiprocessing import Process
 from wsgiref.simple_server import make_server
 
-import boto3
-from botocore.config import Config
-from hncddpylibs.files import get_s3_json, config_file_name, accounts_file_name, list_prefixes
-from hncddpylibs.pipeline import get_pipeline_service, S3PipelineService
+from hncddpylibs.pipeline import S3PipelineService
 from pyramid.config import Configurator
-
-import logging
 
 log = logging.getLogger(__file__)
 

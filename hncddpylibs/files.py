@@ -2,8 +2,6 @@ import json
 
 import re
 
-uuid4hex = re.compile('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', re.I)
-
 from botocore.config import Config
 from io import BytesIO
 
@@ -11,6 +9,7 @@ import os
 import boto3
 import logging
 
+uuid4hex = re.compile('[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', re.I)
 log = logging.getLogger(__file__)
 
 

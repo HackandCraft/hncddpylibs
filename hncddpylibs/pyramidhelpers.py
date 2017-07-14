@@ -1,7 +1,10 @@
+from multiprocessing import Process
+from wsgiref.simple_server import make_server
+
 import boto3
 from botocore.config import Config
 from hncddpylibs.files import get_s3_json, config_file_name, accounts_file_name, list_prefixes
-from hncddpylibs.pipeline import get_pipeline_service
+from hncddpylibs.pipeline import get_pipeline_service, S3PipelineService
 from pyramid.config import Configurator
 
 import logging
@@ -9,39 +12,26 @@ import logging
 log = logging.getLogger(__file__)
 
 
-def enrich_config(bucket, SERVICE_NAME):
+def setup_web_server(processor, port, bucket, service_name):
+    def index(request):
+        log.info('NEWJOB_RECEIVED: %s' % request.params)
+        guid = request.params['guid']
+        p = Process(target=processor, args=(guid, request.job_configurator))
+        p.start()
+        return {'status': 'started', 'guid': guid}
+
     config = Configurator()
-    services_config = get_s3_json(bucket, 'servicesConfig.json')
 
-    def get_config(request):
-        return services_config
+    def get_job_configurator(request):
+        return S3PipelineService(bucket, service_name)
 
-    def get_job_config(request):
-        guid = request.params['guid']
-        return get_s3_json(bucket, config_file_name(guid))
+    config.add_request_method(get_job_configurator, 'job_configurator', reify=True)
 
-    def get_accounts(request):
-        guid = request.params['guid']
-        service = get_pipeline_service(SERVICE_NAME, request.job_config)
-        pattern = service.get('FilePattern')
-        return get_s3_json(bucket, accounts_file_name(guid, pattern))
 
-    def get_bucket(request):
-        s3 = boto3.resource('s3', config=Config(signature_version='s3v4'))
-        return s3.Bucket(bucket)
-
-    def get_storage_config(request):
-        return services_config['Storage']['S3']
-
-    def list_guids(request):
-        return list(list_prefixes(bucket))
-
-    config.add_request_method(get_config, 'config', property=True)
-    config.add_request_method(get_config, 'services_config', property=True)
-    config.add_request_method(get_storage_config, 'storage_config', property=True)
-    config.add_request_method(get_accounts, 'job_accounts', reify=True)
-    config.add_request_method(get_job_config, 'job_config', reify=True)
-    config.add_request_method(get_bucket, 'get_bucket', reify=True)
-    config.add_request_method(list_guids, 'list_guids')
+    config.add_route('index', '/')
+    config.add_view(index, route_name='index', renderer='json')
+    app = config.make_wsgi_app()
+    server = make_server('0.0.0.0', port, app)
+    server.serve_forever()
 
     return config

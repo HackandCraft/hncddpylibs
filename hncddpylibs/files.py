@@ -63,9 +63,7 @@ def get_tmp_path(guid=None):
     return p
 
 
-def get_all_accounts(guid, bucket_name, use_cache=True):
-    s3 = boto3.resource('s3', config=Config(signature_version='s3v4'))
-    bucket = s3.Bucket(bucket_name)
+def get_all_accounts(guid, bucket, use_cache=True):
     fullPrefix = '{}/twitteraccounts/'.format(guid)
     for i, obj in enumerate(bucket.objects.filter(Prefix='{}/'.format(guid))):
         if obj.key.startswith(fullPrefix) and obj.key.endswith('json'):
@@ -83,17 +81,21 @@ def get_all_accounts(guid, bucket_name, use_cache=True):
                 continue
 
 
-def get_s3_json(bucket, filename):
+def get_s3_file(bucket, filename):
     s3 = boto3.resource('s3', config=Config(signature_version='s3v4'))
     with BytesIO() as confile:
         try:
             s3.Bucket(bucket).download_fileobj(filename, confile)
             confile.seek(0)
-            conftext = confile.read().decode('utf-8')
-            return json.loads(conftext, encoding='utf-8')
+            return confile.read().decode('utf-8')
         except Exception as e:
             log.error('ERROR DOWENLOADING JSON:%s: %s', filename, e)
-            return None
+    return None
+
+
+def get_s3_json(bucket, filename):
+    conftext = get_s3_file(bucket, filename)
+    return json.loads(conftext, encoding='utf-8')
 
 
 def list_prefixes(bucket):

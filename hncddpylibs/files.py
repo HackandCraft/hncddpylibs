@@ -94,6 +94,8 @@ def get_s3_file(bucket, filename):
 
 def get_s3_json(bucket, filename):
     conftext = get_s3_file(bucket, filename)
+    if not conftext:
+        return None
     return json.loads(conftext, encoding='utf-8')
 
 

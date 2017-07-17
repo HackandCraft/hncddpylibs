@@ -104,7 +104,7 @@ def get_all_tweets(creds, screen_name, limit, transform=tweet_formatter):
         if len(page) == 0:
             break
         tweets.extend([transform(tweet) for tweet in page])
-        if len(tweets) >= limit:
+        if limit is not None and len(tweets) >= limit:
             break
         last_tweet = page[-1]
         from_id = last_tweet['id'] - 1

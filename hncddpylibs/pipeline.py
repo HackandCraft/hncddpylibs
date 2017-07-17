@@ -37,8 +37,8 @@ class S3PipelineService:
         self.accounts = {}
         self.stopwords = {}
 
-    def get_services_config(self):
-        if not self._services_config:
+    def get_services_config(self, force_refresh=False):
+        if not self._services_config or force_refresh:
             self._services_config = get_s3_json(self.bucket, self.services_config_name)
         return self._services_config
 

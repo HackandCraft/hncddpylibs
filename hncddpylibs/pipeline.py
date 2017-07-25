@@ -109,6 +109,8 @@ class S3PipelineService:
             service_config = self.get_service_config(guid)
             parameters = service_config.get('Parameters', {})
             stopwords = get_s3_file(self.get_bucket(), parameters['StopListFileURL'])
+            if isinstance(stopwords, str):
+                stopwords = stopwords.split()
             self.stopwords[guid] = [word.strip() for word in stopwords]
         return self.stopwords[guid]
 

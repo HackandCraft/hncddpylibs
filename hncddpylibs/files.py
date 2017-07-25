@@ -81,10 +81,12 @@ def get_all_accounts(guid, bucket, use_cache=True):
 
 
 def get_s3_file(bucket, filename):
-    s3 = boto3.resource('s3', config=Config(signature_version='s3v4'))
+    if isinstance(bucket, str):
+        s3 = boto3.resource('s3', config=Config(signature_version='s3v4'))
+        bucket = s3.Bucket(bucket)
     with BytesIO() as confile:
         try:
-            s3.Bucket(bucket).download_fileobj(filename, confile)
+            bucket.download_fileobj(filename, confile)
             confile.seek(0)
             return confile.read().decode('utf-8')
         except Exception as e:

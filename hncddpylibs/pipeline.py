@@ -7,6 +7,7 @@ import boto3
 from botocore.config import Config
 from .files import config_file_name, get_s3_json, accounts_file_name, list_prefixes, get_all_accounts, schema_file_name, \
     csv_file_name, get_s3_file, account_file_name, lda_model_name, topic_model_name
+from .logging import evented, EVENT_HANDOVER
 
 log = logging.getLogger(__file__)
 
@@ -121,7 +122,9 @@ class S3PipelineService:
     def call_next_endpoint(self, guid):
         self.set_service_completed(guid)
         next_service, next_service_url = self.get_next_service(guid)
-        return requests.get(next_service_url, params={'guid': guid})
+        resp = requests.get(next_service_url, params={'guid': guid})
+        log.info('Handed Over Job to "%s"'.format(next_service['Name']), extra=evented(guid, EVENT_HANDOVER))
+        return resp
 
     def save_binary_lda_model(self, guid, ldaf):
         model_file_name = lda_model_name(guid)
